@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- High Contrast Styles --- */
+
+/* --- Light Mode High Contrast --- */
+[data-theme="light"].high-contrast body {
+  background-color: white !important;
+  color: black !important;
+}
+
+[data-theme="light"].high-contrast .btn-primary {
+  background-color: blue !important; 
+  color: white !important;
+  border: 2px solid black !important;
+}
+
+[data-theme="light"].high-contrast .input-bordered,
+[data-theme="light"].high-contrast .textarea-bordered {
+  border-color: black !important;
+  background-color: white !important;
+  color: black !important;
+}
+
+[data-theme="light"].high-contrast a {
+  color: blue !important;
+  text-decoration: underline !important;
+}
+
+[data-theme="light"].high-contrast .card,
+[data-theme="light"].high-contrast .bg-base-100,
+[data-theme="light"].high-contrast .bg-base-200 {
+  background-color: white !important; 
+  color: black !important;
+  border: 1px solid black !important;
+}
+
+/* --- Dark Mode High Contrast --- */
+[data-theme="dark"].high-contrast body {
+  background-color: black !important;
+  color: white !important;
+}
+
+[data-theme="dark"].high-contrast .btn-primary {
+  background-color: yellow !important;
+  color: black !important;
+  border: 2px solid white !important;
+}
+
+[data-theme="dark"].high-contrast .input-bordered,
+[data-theme="dark"].high-contrast .textarea-bordered {
+  border-color: white !important;
+  background-color: black !important;
+  color: white !important;
+}
+
+[data-theme="dark"].high-contrast a {
+  color: yellow !important;
+  text-decoration: underline !important;
+}
+
+[data-theme="dark"].high-contrast .card,
+[data-theme="dark"].high-contrast .bg-base-100,
+[data-theme="dark"].high-contrast .bg-base-200 {
+  background-color: black !important; 
+  color: white !important;
+  border: 1px solid white !important;
+}
+
+/* Add more specific styles for both light and dark high contrast as needed */
