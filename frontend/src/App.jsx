@@ -10,6 +10,7 @@ import DashboardPage from "./pages/DashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import TopicDetailPage from "./pages/TopicDetailPage";
+import AboutUsPage from "./pages/AboutUsPage";
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore";
@@ -66,6 +67,7 @@ const App = () => {
         <Route path="/courses/:courseId" element={authUser ? <CourseDetailPage /> : <Navigate to="/login" />} />
         <Route path="/courses/:courseId/pre-enrollment" element={authUser ? <CourseDetailPage /> : <Navigate to="/login" />} />
         <Route path="/topics/:topicSlug" element={authUser ? <TopicDetailPage /> : <Navigate to="/login" />} />
+        <Route path="/about" element={<AboutUsPage />} />
       </Routes>
       
       {/* Floating Chatbot - appears on all pages */}

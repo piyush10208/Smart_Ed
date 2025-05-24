@@ -165,7 +165,7 @@ const coursesToAdd = {
 const DashboardPage = () => {
   const { authUser, updateProfile, isUpdatingProfile } = useAuthStore();
   const { selectedUser } = useChatStore();
-  const { enrolledCourses, getEnrolledCount, enrollInCourse } = useCourseStore();
+  const { enrolledCourses, getEnrolledCount, enrollInCourse, fetchEnrolledCourses } = useCourseStore();
   const { quizStats, quizAttempts, fetchQuizData, isLoading: quizLoading } = useQuizStore();
   const { studentStats, learningPatterns, fetchStudentData, isLoading: studentLoading } = useStudentStore();
   const { theme, toggleTheme, isHighContrast, toggleHighContrast } = useTheme();
@@ -206,6 +206,7 @@ const DashboardPage = () => {
     fetchStudentData();
     fetchQuizData();
     fetchRecommendedCourses();
+    fetchEnrolledCourses();
   }, []);
   
   // Fetch recommended courses based on user performance

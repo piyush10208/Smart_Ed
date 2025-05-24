@@ -2,188 +2,327 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import useCourseStore from "../store/useCourseStore";
-import { BookOpen, Clock, Users, Star, Play, Check, List, ArrowLeft, FileText, X, Award } from "lucide-react";
+import { BookOpen, Clock, Users, Star, Play, Check, List, ArrowLeft, FileText, X, Award, HelpCircle, RefreshCw, CheckCircle, XCircle } from "lucide-react";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 
+// Client-side quiz question pool (moved/duplicated from HomePage.jsx)
+const questionPools = {
+  python: [
+    {
+      question: "What type of language is Python?",
+      options: ["Compiled language", "Assembly language", "Interpreted language", "Machine language"],
+      correctAnswer: 2
+    },
+    {
+      question: "Which of these is NOT a Python data type?",
+      options: ["List", "Dictionary", "Array", "Tuple"],
+      correctAnswer: 2
+    },
+    {
+      question: "What is the correct way to create a function in Python?",
+      options: ["function myFunc():", "def myFunc():", "create myFunc():", "func myFunc():"],
+      correctAnswer: 1
+    },
+    {
+      question: "What symbol is used for single-line comments in Python?",
+      options: ["//", "#", "/* */", "--"],
+      correctAnswer: 1
+    },
+    {
+      question: "Which of these is a Python framework for web development?",
+      options: ["React", "Django", "Express", "Ruby on Rails"],
+      correctAnswer: 1
+    },
+    {
+      question: "In Python, what does the 'self' keyword refer to?",
+      options: ["The main program file", "The current function", "The current module", "The instance of the class"],
+      correctAnswer: 3
+    },
+  ],
+  java: [
+    {
+      question: "What is the entry point for a Java application?",
+      options: ["main() method", "start() method", "run() method", "init() method"],
+      correctAnswer: 0
+    },
+    {
+      question: "Which keyword is used to define a constant in Java?",
+      options: ["static", "final", "const", "abstract"],
+      correctAnswer: 1
+    },
+    {
+      question: "Which of these is a Java framework for web applications?",
+      options: ["Spring", "Flask", "Django", "Express"],
+      correctAnswer: 0
+    },
+    {
+      question: "What is the correct way to declare a variable in Java?",
+      options: ["variable x;", "int x;", "x = int;", "declare int x;"],
+      correctAnswer: 1
+    },
+    {
+      question: "What tool might be useful when working with Java?",
+      options: ["Documentation tools", "Analysis software", "Collaboration platforms", "Depends on the specific task"],
+      correctAnswer: 3
+    }
+  ]
+  // Add other topics as needed
+};
+
+// Generic question templates that can be adapted to any topic (copied from HomePage.jsx)
+const generateGenericQuestion = (topic) => {
+  const genericQuestions = [
+    {
+      template: "What is one benefit of studying %s?",
+      options: [
+        "Career opportunities",
+        "Personal development",
+        "Problem-solving skills",
+        "All of the above"
+      ],
+      correctAnswer: 3
+    },
+    {
+      template: "Where can you learn more about %s?",
+      options: [
+        "Online courses",
+        "Universities",
+        "Books and publications",
+        "All of the above"
+      ],
+      correctAnswer: 3
+    },
+    {
+      template: "Which of these is likely NOT related to %s?",
+      options: [
+        "Research papers",
+        "Cooking recipes",
+        "Academic journals",
+        "Professional conferences"
+      ],
+      correctAnswer: 1
+    },
+    {
+      template: "What skill might be most valuable when studying %s?",
+      options: [
+        "Critical thinking",
+        "Memorization",
+        "Creativity",
+        "Depends on the specific field"
+      ],
+      correctAnswer: 3
+    },
+    {
+      template: "How might %s evolve in the next decade?",
+      options: [
+        "Become more specialized",
+        "Become more accessible to the general public",
+        "Incorporate more technology",
+        "All of the above are possible"
+      ],
+      correctAnswer: 3
+    },
+     {
+      template: "How has technology changed the field of %s?",
+      options: [
+        "Made information more accessible",
+        "Improved analysis techniques",
+        "Created new specializations",
+        "All of these ways"
+      ],
+      correctAnswer: 3
+    }
+  ];
+
+  // Select a subset of generic questions if needed (optional, can use all)
+  const selectedGenericTemplates = shuffleArray(genericQuestions).slice(0, 5); // Select 5 generic questions
+
+  return selectedGenericTemplates.map(q => ({
+    question: q.template.replace('%s', topic),
+    options: shuffleArray([...q.options]), // Shuffle options for generic questions too
+    correctAnswer: q.options.findIndex(opt => opt === q.options[q.correctAnswer]), // Find correct index in shuffled options
+    id: `gen-${Math.random().toString(36).substring(2, 15)}` // Add a simple unique ID
+  }));
+};
+
+// Function to shuffle an array (moved/duplicated from HomePage.jsx)
+const shuffleArray = (array) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+// Function to generate quiz questions (adapted from HomePage.jsx)
+const generateQuizQuestions = (topic) => {
+  const topicLower = topic.toLowerCase();
+  const NUM_QUESTIONS = 5;
+
+  let availableQuestions = [];
+  for (const key in questionPools) {
+    if (topicLower.includes(key)) {
+      availableQuestions = [...questionPools[key]];
+      break;
+    }
+  }
+
+  // If no predefined questions for the specific topic, use generic ones as a fallback
+   if (availableQuestions.length === 0) {
+       console.warn(`No predefined questions for topic: "${topic}". Generating generic questions.`);
+       availableQuestions = generateGenericQuestion(topic); // Use generic questions
+       // If even generic question generation fails or returns empty, still return empty
+       if (availableQuestions.length === 0) {
+           console.error("Failed to generate even generic questions.");
+           return [];
+       }
+   } else {
+       console.log(`Found predefined questions for topic: "${topic}".`);
+   }
+
+
+  // Shuffle questions and select a subset (only needed if availableQuestions > NUM_QUESTIONS)
+  const questionsToSelect = availableQuestions.length > NUM_QUESTIONS ? shuffleArray(availableQuestions) : availableQuestions;
+  const selectedQuestions = questionsToSelect.slice(0, Math.min(NUM_QUESTIONS, questionsToSelect.length));
+
+
+  // Shuffle options for each selected question and ensure consistent format
+  return selectedQuestions.map(q => {
+    // If questions are from the predefined pools, options are already strings,
+    // and correctAnswer is the index. If from generic, we created optionPairs.
+    // Let's unify the format here if necessary, or ensure generateGenericQuestion
+    // returns the same structure as the predefined pools.
+    // Assuming generateGenericQuestion returns {question: string, options: string[], correctAnswer: index}
+
+    const optionPairs = q.options.map((opt, idx) => ({
+      text: opt,
+      isCorrect: idx === q.correctAnswer
+    }));
+    const shuffledOptions = shuffleArray(optionPairs);
+    const newCorrectIndex = shuffledOptions.findIndex(opt => opt.isCorrect);
+
+    return {
+      question: q.question,
+      options: shuffledOptions.map(opt => opt.text),
+      correctAnswer: newCorrectIndex,
+      id: q.id || `q${Math.random().toString(36).substring(2, 15)}` // Use existing ID or generate one
+    };
+  });
+};
+
 // Quiz Modal Component
 const QuizModal = ({ lesson, module, courseId, moduleIndex, onClose, onProgressUpdate }) => {
+  // State variables matching HomePage quiz structure
   const [loading, setLoading] = useState(true);
-  const [quiz, setQuiz] = useState(null);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [quizQuestions, setQuizQuestions] = useState([]); // Use quizQuestions like HomePage
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // Use 0-indexed like HomePage
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
-  const [quizResults, setQuizResults] = useState(null);
+  const [quizScore, setQuizScore] = useState(0); // Use quizScore like HomePage
   const [error, setError] = useState(null);
   const { authUser } = useAuthStore();
 
   useEffect(() => {
-    fetchQuiz();
+    startQuiz(); // Start the quiz when modal opens
   }, []);
 
-  const fetchQuiz = async () => {
+  // Function to start the quiz (adapted from HomePage.jsx)
+  const startQuiz = () => {
+    console.log("Starting quiz from QuizModal");
     setLoading(true);
-    setError(null); // Clear any previous errors
-    console.log("Fetching quiz for:", {
-      courseId,
-      moduleIndex,
-      moduleTitle: module.title,
-      lessonTitle: lesson.title
-    });
+    setError(null); // Clear errors
+    setQuizSubmitted(false); // Reset submitted state
+    setSelectedAnswers({}); // Clear previous answers
+    setCurrentQuestionIndex(0); // Go to the first question
+    setQuizScore(0); // Reset score
     
-    try {
-      // Log the full request URL for debugging
-      console.log("Sending request to:", `${axiosInstance.defaults.baseURL}/quiz/dev/generate`);
-      
-      // Add a unique timestamp to prevent getting a cached or completed quiz
-      const timestamp = new Date().getTime();
-      const uniqueCourseId = `${courseId}-${timestamp}`;
-      
-      // Use the development route that doesn't require authentication
-      const response = await axiosInstance.post("/quiz/dev/generate", {
-        courseId: uniqueCourseId,
-        moduleIndex,
-        moduleTitle: module.title,
-        lessonTitle: lesson.title
-      });
-      
-      // Validate response data
-      if (!response.data || !response.data._id || !response.data.questions) {
-        console.error("Invalid quiz data received:", response.data);
-        throw new Error("Received invalid quiz data from server");
-      }
-      
-      console.log("Quiz generated successfully:", response.data);
-      setQuiz(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching quiz:", error);
-      if (error.response) {
-        console.error("Error response status:", error.response.status);
-        console.error("Error response data:", error.response.data);
-        setError(`Failed to load quiz: ${error.response.data.message || "Server error"}`);
-      } else if (error.request) {
-        console.error("Error request:", error.request);
-        setError("Failed to load quiz: No response from server - check if backend is running");
-      } else {
-        console.error("Error message:", error.message);
-        setError(`Failed to load quiz: ${error.message}`);
-      }
-      setLoading(false);
-      toast.error("Failed to load quiz");
+    // Determine the topic for question generation
+    let topic = lesson.title; // Start with lesson title
+    const moduleTitle = module.title.toLowerCase();
+    const lessonTitle = lesson.title.toLowerCase();
+
+    if (moduleTitle.includes('python') || lessonTitle.includes('python')) {
+        topic = 'python';
+    } else if (moduleTitle.includes('java') || lessonTitle.includes('java')) {
+        topic = 'java';
+    } else {
+        // If no specific keyword found, use the lesson title as a fallback,
+        // but the generateQuizQuestions function will likely return empty if no match
+        topic = lesson.title;
     }
+
+    console.log("Attempting to generate quiz for topic:", topic); // Added log
+
+    const questions = generateQuizQuestions(topic);
+    
+    if (questions.length === 0) {
+        setError(`Could not generate quiz questions for topic: "${topic}". Make sure there are questions available for this topic in the code.`); // Updated error message
+        setLoading(false);
+        return;
+    }
+
+    setQuizQuestions(questions);
+    setLoading(false);
+    console.log("Quiz questions generated successfully:", questions); // Added log
   };
 
-  const handleSelectAnswer = (questionId, answer) => {
+  // handleSelectAnswer adapted from HomePage.jsx
+  const handleSelectAnswer = (questionIndex, optionIndex) => {
+    if (quizSubmitted) return; // Prevent changing answers after submission
     setSelectedAnswers({
       ...selectedAnswers,
-      [questionId]: answer
+      [questionIndex]: optionIndex
     });
   };
 
-  const handleSubmitQuiz = async () => {
-    if (!quiz) return;
+  // handleSubmitQuiz adapted from submitQuiz in HomePage.jsx
+  const handleSubmitQuiz = () => {
+    console.log("Submitting quiz");
+    let score = 0;
     
-    if (Object.keys(selectedAnswers).length < quiz.questions.length) {
-      toast.error("Please answer all questions before submitting");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Format responses
-      const responses = Object.entries(selectedAnswers).map(([questionId, answer]) => ({
-        questionId,
-        answer
-      }));
-
-      console.log("Submitting quiz responses:", {
-        quizId: quiz._id,
-        responses
-      });
-
-      // Ensure we have a valid quiz ID
-      if (!quiz._id) {
-        console.error("Quiz ID is missing in the quiz object:", quiz);
-        throw new Error("Quiz ID is missing");
+    quizQuestions.forEach((q, index) => {
+      // Check if the selected answer index matches the correct answer index
+      if (selectedAnswers[index] === q.correctAnswer) {
+        score++;
       }
+    });
+    
+    setQuizScore(score);
+    setQuizSubmitted(true);
+    console.log("Quiz submitted. Score:", score, "/", quizQuestions.length);
 
-      // Make sure we have valid responses
-      if (responses.length === 0) {
-        throw new Error("No responses to submit");
-      }
-      
-      // Log the full request details for debugging
-      console.log("Sending request to:", `${axiosInstance.defaults.baseURL}/quiz/dev/submit`);
-      console.log("Request payload:", { quizId: quiz._id, responses });
-
-      const response = await axiosInstance.post("/quiz/dev/submit", {
-        quizId: quiz._id,
-        responses
-      });
-
-      console.log("Quiz submission successful:", response.data);
-      setQuizResults(response.data);
-      setQuizSubmitted(true);
-      setLoading(false);
-      
-      // Calculate the percentage of correct answers
-      const scorePercentage = (response.data.score / response.data.totalQuestions) * 100;
-      
-      // Update the course progress based on quiz completion
-      // Each quiz contributes between 5% and 15% to course progress depending on score
-      const progressIncrease = Math.max(5, Math.round(scorePercentage * 0.15));
-      
-      // Call the onProgressUpdate function to update the course progress
-      onProgressUpdate(progressIncrease);
-      
-      toast.success("Quiz completed successfully!");
-    } catch (error) {
-      console.error("Error submitting quiz:", error);
-      if (error.response) {
-        console.error("Error response status:", error.response.status);
-        console.error("Error response data:", error.response.data);
-        
-        // Handle the "Quiz already completed" error specifically
-        if (error.response.data.message === "Quiz already completed") {
-          // Try to fetch the quiz results if it's already completed
-          try {
-            const resultResponse = await axiosInstance.get(`/quiz/dev/results/${quiz._id}`);
-            setQuizResults(resultResponse.data);
-            setQuizSubmitted(true);
-            toast.info("This quiz was already completed. Showing your previous results.");
-          } catch (resultError) {
-            // If we can't retrieve the results, show a simple message
-            toast.error("This quiz has already been completed. Please try a different one.");
-            onClose(); // Close the quiz modal
-          }
-        } else {
-          // Handle other error messages
-          toast.error(`Failed to submit quiz: ${error.response.data.message || "Server error"}`);
-        }
-      } else if (error.request) {
-        console.error("Error request:", error.request);
-        toast.error("Failed to submit quiz: No response from server - check if backend is running");
-      } else {
-        console.error("Error message:", error.message);
-        toast.error(`Failed to submit quiz: ${error.message}`);
-      }
-      setLoading(false);
-    }
+    // Note: Progress update logic might need to be reviewed or adapted
+    // if course progress is tied to quiz completion via the backend.
+    // For now, we'll keep the existing onProgressUpdate call, 
+    // assuming it handles frontend completion.
+    const percentage = quizQuestions.length > 0 ? Math.round((score / quizQuestions.length) * 100) : 0;
+    const progressIncrease = Math.max(5, Math.round(percentage * 0.15));
+    onProgressUpdate(progressIncrease);
   };
 
+  // handleNextQuestion adapted from goToNextQuestion in HomePage.jsx
   const handleNextQuestion = () => {
-    if (currentQuestion < quiz.questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
+    if (currentQuestionIndex < quizQuestions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
   };
 
+  // handlePrevQuestion adapted from goToPreviousQuestion in HomePage.jsx
   const handlePrevQuestion = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
     }
   };
+  
+  // restartQuiz function (already added, but ensure it calls startQuiz)
+  const restartQuiz = () => {
+    console.log("Restarting quiz");
+    startQuiz(); // Call startQuiz to regenerate questions and reset state
+  };
 
+  // getScoreColor function remains the same
   const getScoreColor = (percentage) => {
     if (percentage >= 80) return "text-success";
     if (percentage >= 60) return "text-warning";
@@ -218,19 +357,17 @@ const QuizModal = ({ lesson, module, courseId, moduleIndex, onClose, onProgressU
             </div>
             <h3 className="text-xl font-bold mb-2">Error Loading Quiz</h3>
             <p className="mb-4">{error}</p>
-            <button 
-              className="btn btn-primary"
-              onClick={fetchQuiz}
-            >
-              Try Again
-            </button>
+            {/* Removed Try Again button here, as startQuiz is called on mount */}
           </div>
         </div>
       </div>
     );
   }
 
-  if (quizSubmitted && quizResults) {
+  // Render Quiz Results (adapted from HomePage.jsx results JSX)
+  if (quizSubmitted) {
+    // Calculate percentage for display
+    const percentage = quizQuestions.length > 0 ? Math.round((quizScore / quizQuestions.length) * 100) : 0;
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
         <div className="bg-base-100 rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
@@ -252,10 +389,10 @@ const QuizModal = ({ lesson, module, courseId, moduleIndex, onClose, onProgressU
             <div className="stats shadow mx-auto mt-4">
               <div className="stat">
                 <div className="stat-title">Score</div>
-                <div className={`stat-value ${getScoreColor(quizResults.percentage)}`}>
-                  {quizResults.score}/{quizResults.totalQuestions}
+                <div className={`stat-value ${getScoreColor(percentage)}`}>
+                  {quizScore}/{quizQuestions.length}
                 </div>
-                <div className="stat-desc">{quizResults.percentage}% correct</div>
+                <div className="stat-desc">{percentage}% correct</div>
               </div>
             </div>
           </div>
@@ -263,29 +400,31 @@ const QuizModal = ({ lesson, module, courseId, moduleIndex, onClose, onProgressU
           <div className="divider">Answers</div>
           
           <div className="space-y-6">
-            {quizResults.responses.map((response, index) => (
-              <div key={response.questionId} className="bg-base-200 p-4 rounded-lg">
+            {quizQuestions.map((question, index) => (
+              <div key={question.id || index} className="bg-base-200 p-4 rounded-lg">
                 <div className="flex items-start gap-3 mb-3">
                   <div className="bg-base-100 text-base-content size-6 rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     {index + 1}
                   </div>
-                  <div className="font-medium">{response.question}</div>
+                  <div className="font-medium">{question.question}</div>
                 </div>
                 <div className="pl-9">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={`font-medium ${response.isCorrect ? 'text-success' : 'text-error'}`}>
-                      Your answer: {response.userAnswer}
-                    </div>
-                    {response.isCorrect ? 
-                      <Check className="size-5 text-success" /> : 
-                      <X className="size-5 text-error" />
-                    }
-                  </div>
-                  {!response.isCorrect && (
-                    <div className="text-success font-medium">
-                      Correct answer: {response.correctAnswer}
-                    </div>
-                  )}
+                   {/* Display user's answer and correctness */}
+                   <div className="flex items-center gap-2 mb-1">
+                     <div className={`font-medium ${selectedAnswers[index] === question.correctAnswer ? 'text-success' : 'text-error'}`}>
+                       Your answer: {question.options[selectedAnswers[index]] || 'Not answered'} {/* Display user's chosen option text */}
+                     </div>
+                     {selectedAnswers[index] === question.correctAnswer ?
+                       <Check className="size-5 text-success" /> :
+                       <X className="size-5 text-error" />
+                     }
+                   </div>
+                   {/* Display correct answer if user was wrong */}
+                   {selectedAnswers[index] !== question.correctAnswer && (
+                     <div className="text-success font-medium">
+                       Correct answer: {question.options[question.correctAnswer]} {/* Display correct option text */}
+                     </div>
+                   )}
                 </div>
               </div>
             ))}
@@ -298,15 +437,25 @@ const QuizModal = ({ lesson, module, courseId, moduleIndex, onClose, onProgressU
             >
               Close
             </button>
+            <button 
+              className="btn btn-outline ml-4"
+              onClick={restartQuiz}
+            >
+              <RefreshCw size={18} className="mr-2" />
+              Try Again
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!quiz) return null;
+  // Render Quiz Questions (adapted from HomePage.jsx quiz JSX)
+  if (!quizQuestions || quizQuestions.length === 0) return null; // Don't render if no questions
 
-  const currentQuestionData = quiz.questions[currentQuestion];
+  const currentQuestionData = quizQuestions[currentQuestionIndex]; // Use 0-indexed index
+  const totalQuestions = quizQuestions.length;
+  const answeredCount = Object.keys(selectedAnswers).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -325,10 +474,10 @@ const QuizModal = ({ lesson, module, courseId, moduleIndex, onClose, onProgressU
         
         <div className="flex justify-between items-center mb-4">
           <div className="badge badge-neutral">
-            Question {currentQuestion + 1} of {quiz.questions.length}
+            Question {currentQuestionIndex + 1} of {totalQuestions}
           </div>
           <div className="text-sm">
-            {Object.keys(selectedAnswers).length} of {quiz.questions.length} answered
+            {answeredCount} of {totalQuestions} answered
           </div>
         </div>
         
@@ -342,17 +491,17 @@ const QuizModal = ({ lesson, module, courseId, moduleIndex, onClose, onProgressU
               <label 
                 key={index} 
                 className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors
-                  ${selectedAnswers[currentQuestionData.id] === option 
+                  ${selectedAnswers[currentQuestionIndex] === index 
                     ? 'border-primary bg-primary/10'
                     : 'border-base-300 hover:bg-base-200'
                   }`}
               >
                 <input
                   type="radio"
-                  name={`question-${currentQuestionData.id}`}
+                  name={`question-${currentQuestionIndex}`}
                   className="radio radio-primary"
-                  checked={selectedAnswers[currentQuestionData.id] === option}
-                  onChange={() => handleSelectAnswer(currentQuestionData.id, option)}
+                  checked={selectedAnswers[currentQuestionIndex] === index}
+                  onChange={() => handleSelectAnswer(currentQuestionIndex, index)}
                 />
                 <span>{option}</span>
               </label>
@@ -360,16 +509,38 @@ const QuizModal = ({ lesson, module, courseId, moduleIndex, onClose, onProgressU
           </div>
         </div>
         
-        <div className="flex justify-between">
+        <div className="flex items-center justify-between mt-6 gap-4 sticky bottom-0 bg-base-100 pt-4 border-t">
           <button 
             className="btn btn-outline"
-            disabled={currentQuestion === 0}
+            disabled={currentQuestionIndex === 0}
             onClick={handlePrevQuestion}
           >
             Previous
           </button>
           
-          {currentQuestion < quiz.questions.length - 1 ? (
+          {/* Pagination/Question Navigation */}
+          <div className="flex-grow flex justify-center">
+            <div className="join">
+              {quizQuestions.map((_, index) => (
+                <button 
+                  key={index}
+                  className={`join-item btn btn-sm ${
+                    currentQuestionIndex === index 
+                      ? 'btn-primary' 
+                      : index in selectedAnswers 
+                        ? 'btn-success' 
+                        : 'btn-ghost'
+                  }`}
+                  onClick={() => setCurrentQuestionIndex(index)}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Next or Submit Button */}
+          {currentQuestionIndex < quizQuestions.length - 1 ? (
             <button 
               className="btn btn-primary"
               onClick={handleNextQuestion}
@@ -379,7 +550,7 @@ const QuizModal = ({ lesson, module, courseId, moduleIndex, onClose, onProgressU
           ) : (
             <button 
               className="btn btn-primary"
-              disabled={Object.keys(selectedAnswers).length < quiz.questions.length}
+              disabled={answeredCount < totalQuestions} // Disable if not all questions answered
               onClick={handleSubmitQuiz}
             >
               Submit Quiz

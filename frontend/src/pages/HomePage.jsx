@@ -1027,7 +1027,7 @@ const HomePage = () => {
   // Footer links
   const footerLinks = {
     platform: [
-      { title: "About Us", href: "#" },
+      { title: "About Us", href: "/about" },
       { title: "Careers", href: "#" },
       { title: "Partners", href: "#" },
       { title: "Blog", href: "#" }
@@ -1215,12 +1215,12 @@ const HomePage = () => {
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <Mail className="size-5 text-primary" />
-                  <span>contact@smartedu.com</span>
+                  <span>piyushbhardwaj909@gmail.com</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Phone className="size-5 text-primary" />
-                  <span>+91 9876543210</span>
-                  <span>+91 9876543211</span>
+                  <span>+91 9368371198</span>
+                  <span>+91 9199991999</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <MapPin className="size-5 text-primary" />
