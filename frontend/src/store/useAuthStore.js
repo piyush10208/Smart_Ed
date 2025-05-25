@@ -3,7 +3,7 @@ import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
+const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "";
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -114,77 +114,28 @@ export const useAuthStore = create((set, get) => ({
   },
 
   connectSocket: () => {
-    const { authUser, socket, isSocketConnecting, socketListeners } = get();
+    if (get().socket) return;
     
-    // Don't connect if already connecting or connected
-    if (isSocketConnecting || (socket?.connected && authUser?._id === socket?.auth?.userId)) {
-      return;
-    }
-
-    // Clean up existing socket if any
-    get().disconnectSocket();
-
     set({ isSocketConnecting: true });
-
-    try {
-      const newSocket = io(BASE_URL, {
-        query: {
-          userId: authUser?._id,
-        },
-        withCredentials: true,
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        timeout: 20000,
-        autoConnect: true,
-        forceNew: true
-      });
-
-      const handleConnect = () => {
-        console.log("Socket connected");
-        set({ isSocketConnecting: false });
-      };
-
-      const handleDisconnect = () => {
-        console.log("Socket disconnected");
-        set({ isSocketConnecting: false });
-      };
-
-      const handleError = (error) => {
-        console.error("Socket connection error:", error);
-        set({ isSocketConnecting: false });
-      };
-
-      const handleOnlineUsers = (userIds) => {
-        if (Array.isArray(userIds)) {
-          set((state) => ({
-            onlineUsers: userIds.filter(id => id !== authUser?._id)
-          }));
-        }
-      };
-
-      // Store listeners for cleanup
-      const listeners = {
-        connect: handleConnect,
-        disconnect: handleDisconnect,
-        connect_error: handleError,
-        getOnlineUsers: handleOnlineUsers
-      };
-
-      // Add listeners
-      Object.entries(listeners).forEach(([event, handler]) => {
-        newSocket.on(event, handler);
-      });
-
-      set({ 
-        socket: newSocket,
-        socketListeners: listeners
-      });
-    } catch (error) {
-      console.error("Failed to create socket connection:", error);
+    
+    const socket = io(BASE_URL, {
+      withCredentials: true,
+    });
+    
+    socket.on("connect", () => {
+      console.log("Socket connected");
       set({ isSocketConnecting: false });
-    }
+    });
+    
+    socket.on("disconnect", () => {
+      console.log("Socket disconnected");
+    });
+    
+    socket.on("onlineUsers", (users) => {
+      set({ onlineUsers: users });
+    });
+    
+    set({ socket });
   },
 
   disconnectSocket: () => {
